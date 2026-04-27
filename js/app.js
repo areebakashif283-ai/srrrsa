@@ -86,6 +86,57 @@ const App = (() => {
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
 
+  /**
+   * Populate a `.notice` element with a description of which provider Lumen
+   * will route generations to. `flow` is one of 'text', 'image', 'video' and
+   * affects whether the active provider can actually do real generation for
+   * that flow (HF only supports text→video; the proxy providers support all
+   * three; built-in is always demo).
+   */
+  function renderProviderNotice(el, flow) {
+    if (!el || typeof VideoAPI === 'undefined') return;
+    el.replaceChildren();
+    const provider = VideoAPI.activeProvider();
+    const hasHfKey = VideoAPI.hasKey('huggingface');
+    let mode = 'builtin'; // builtin | real | fallback
+    let body = '';
+    if (provider === 'huggingface' && hasHfKey && flow === 'text') {
+      mode = 'real';
+    } else if (provider === 'huggingface' && hasHfKey) {
+      mode = 'fallback';
+      body = 'Hugging Face is selected but it has no free model for this flow. Lumen is using the Devin built-in clip library instead.';
+    } else if (provider === 'huggingface') {
+      mode = 'fallback';
+      body = 'Hugging Face is selected but no token is saved. Add one in Settings, or stay on the Devin built-in clip library.';
+    } else if (provider !== 'devin-builtin') {
+      // Replicate / Stability / etc. Need both a key AND a proxy URL.
+      const proxyUrl = (Storage.getSettings().proxyUrl || '').trim();
+      if (VideoAPI.hasKey(provider) && proxyUrl) {
+        mode = 'real';
+      } else {
+        mode = 'fallback';
+        body = `${provider} is selected but it requires a proxy URL${VideoAPI.hasKey(provider) ? '' : ' and an API key'}. Lumen is using the Devin built-in clip library instead.`;
+      }
+    }
+    if (mode === 'real') {
+      el.style.display = 'none';
+      return;
+    }
+    if (mode === 'builtin') {
+      body = 'Lumen is routing prompts to the Devin built-in clip library — a curated set of CC0 sample MP4s picked by your prompt keywords. Switch to Hugging Face in Settings for real generation.';
+    }
+    el.style.display = 'block';
+    const strong = document.createElement('strong');
+    strong.textContent = mode === 'builtin' ? 'Devin built-in active.' : 'Heads up:';
+    const space = document.createTextNode(' ');
+    const text = document.createTextNode(body);
+    const link = document.createElement('a');
+    link.href = 'settings.html';
+    link.textContent = 'Open Settings';
+    link.style.marginLeft = '6px';
+    el.append(strong, space, text, document.createTextNode(' '), link);
+  }
+
   function formatDate(ts) {
     const d = new Date(ts);
     return d.toLocaleString(undefined, {
@@ -99,7 +150,7 @@ const App = (() => {
     highlightActiveNav();
   });
 
-  return { toast, downloadBlob, formatDate, escapeHtml };
+  return { toast, downloadBlob, formatDate, escapeHtml, renderProviderNotice };
 })();
 
 window.App = App;

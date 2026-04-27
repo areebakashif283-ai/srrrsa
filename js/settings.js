@@ -3,9 +3,11 @@
   const settings = Storage.getSettings();
   const providerEl = document.getElementById('active-provider');
   const proxyEl = document.getElementById('proxy-url');
-  const providers = ['replicate', 'stability', 'runway', 'pika', 'luma'];
+  // Providers that store an API key. 'devin-builtin' is included in the
+  // dropdown but has no key field and isn't iterated here.
+  const providers = ['huggingface', 'replicate', 'stability', 'runway', 'pika', 'luma'];
 
-  providerEl.value = settings.activeProvider || 'replicate';
+  providerEl.value = settings.activeProvider || 'devin-builtin';
   proxyEl.value = settings.proxyUrl || '';
 
   providers.forEach((p) => {
@@ -46,7 +48,7 @@
       if (input) input.value = '';
     });
     proxyEl.value = '';
-    providerEl.value = 'replicate';
+    providerEl.value = 'devin-builtin';
     App.toast('Lumen Studio reset.', 'info');
   });
 })();

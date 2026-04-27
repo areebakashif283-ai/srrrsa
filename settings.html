@@ -47,14 +47,30 @@
         <div class="settings-grid">
           <div class="settings-card">
             <h3>Active provider</h3>
-            <p class="desc">Choose which provider Lumen routes generations to.</p>
+            <p class="desc">Choose which provider Lumen routes generations to. <strong>Devin built-in</strong> and <strong>Hugging Face</strong> work directly from the browser; the others require a proxy URL.</p>
             <select class="select" id="active-provider">
+              <option value="devin-builtin">Devin built-in (no keys, instant)</option>
+              <option value="huggingface">Hugging Face (real, free)</option>
               <option value="replicate">Replicate</option>
               <option value="stability">Stability AI</option>
               <option value="runway">RunwayML</option>
               <option value="pika">Pika</option>
               <option value="luma">Luma Dream Machine</option>
             </select>
+          </div>
+
+          <div class="settings-card">
+            <h3>Devin built-in <span class="badge">No key needed</span></h3>
+            <p class="desc">A tiny in-browser "model" that picks a curated CC0 sample clip based on your prompt's keywords (cyberpunk, fantasy, anime, action, &hellip;). Useful for design review, demos, and offline playback. No network calls beyond the sample-clip CDN.</p>
+          </div>
+
+          <div class="settings-card">
+            <h3>Hugging Face token <span class="badge">Free tier</span></h3>
+            <p class="desc">Real text-to-video using <code>damo-vilab/text-to-video-ms-1.7b</code>. Generation takes 20&ndash;60s on cold start. Get a free read token at <a href="https://huggingface.co/settings/tokens" target="_blank" rel="noreferrer">huggingface.co/settings/tokens</a>.</p>
+            <div class="input-group">
+              <input type="password" class="input" id="key-huggingface" placeholder="hf_&hellip;" autocomplete="off" />
+              <button class="btn btn-ghost" data-save="huggingface">Save</button>
+            </div>
           </div>
 
           <div class="settings-card">

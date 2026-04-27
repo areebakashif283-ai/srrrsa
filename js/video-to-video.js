@@ -15,7 +15,7 @@
 
   const state = { style: 'ghibli', file: null, currentVideoUrl: null };
 
-  if (!VideoAPI.hasKey()) apiNotice.style.display = 'block';
+  App.renderProviderNotice(apiNotice, 'video');
 
   document.querySelectorAll('[data-chip-group="style"] .chip').forEach((chip) => {
     chip.addEventListener('click', () => {
@@ -75,7 +75,7 @@
       </div>`;
   }
 
-  function showResult(videoUrl, demo) {
+  function showResult(videoUrl, demo, builtinClipLabel) {
     previewStage.replaceChildren();
     const video = document.createElement('video');
     video.className = 'preview-video-result';
@@ -90,7 +90,7 @@
       const badge = document.createElement('span');
       badge.className = 'badge beta';
       badge.style.cssText = 'position:absolute;top:14px;right:14px;';
-      badge.textContent = 'Demo output';
+      badge.textContent = builtinClipLabel ? `Devin built-in · ${builtinClipLabel}` : 'Demo output';
       previewStage.appendChild(badge);
     }
     previewActions.style.display = 'flex';
@@ -126,6 +126,7 @@
       const result = await VideoAPI.videoToVideo({
         video: state.file,
         prompt: promptEl.value || state.style,
+        style: state.style,
         strength: Number(strengthEl.value),
         onProgress: (pct) => {
           if (progressBar) progressBar.style.width = `${pct}%`;
@@ -135,7 +136,7 @@
           }
         },
       });
-      showResult(result.videoUrl, result.demo);
+      showResult(result.videoUrl, result.demo, result.builtinClipLabel);
       try {
         Storage.addHistory({
           type: 'video-to-video',

@@ -1,33 +1,82 @@
 /**
  * API integration layer for video generation providers.
  *
- * This file is a HYBRID layer: when no API key is present, it returns a demo
- * placeholder video so the UI is fully functional for design review. When a key
- * is configured, it routes to the appropriate real provider.
+ * Supported providers:
+ *  - devin-builtin (default): a no-key, no-network "Devin built-in" provider
+ *    that picks a curated CC0 sample clip based on prompt/style keywords.
+ *  - huggingface: real text-to-video using the public Hugging Face Inference
+ *    API. Free-tier eligible; user supplies an HF token in Settings. Direct
+ *    browser calls work because the HF API allows CORS.
+ *  - replicate / stability / runway / pika / luma: real generation via a
+ *    user-supplied proxy URL (these providers don't allow direct browser
+ *    calls, so the proxy is required).
  *
- * To enable real generation:
- *  1. Open Settings page and add an API key for one of the supported providers.
- *  2. Some providers (Replicate, RunwayML) require server-side calls due to CORS;
- *     deploy a tiny proxy endpoint and set its URL in Settings → "Proxy URL".
- *  3. The functions below try a direct browser call first, then fall back to
- *     the proxy if configured.
+ * Image→Video and Video→Video on the Hugging Face provider transparently fall
+ * back to the built-in path because there is no good free-tier model for those
+ * two flows (SVD is gated, and there is no public text-conditioned vid→vid).
  */
 const VideoAPI = (() => {
-  // Public CC0 demo clip used when no key is configured (Big Buck Bunny short)
-  const DEMO_VIDEO_URL =
-    'https://cdn.jsdelivr.net/gh/mediaelement/mediaelement-files@4.2.16/big_buck_bunny.mp4';
+  // Curated CC0 sample clips hosted on Google's public sample bucket. Each
+  // clip has a few prompt keywords; we pick the best match per generation so
+  // built-in output feels at least a little prompt-aware.
+  const BUILTIN_CLIPS = [
+    {
+      id: 'adventure',
+      label: 'Cinematic adventure',
+      url: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4',
+      keywords: ['adventure', 'journey', 'epic', 'travel', 'escape', 'hero', 'road', 'mountain', 'desert', 'samurai'],
+    },
+    {
+      id: 'fantasy',
+      label: 'Fantasy dreamscape',
+      url: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4',
+      keywords: ['fantasy', 'dream', 'dragon', 'magic', 'mystical', 'mage', 'wizard', 'sintel', 'snow', 'ice'],
+    },
+    {
+      id: 'surreal',
+      label: 'Surreal mechanical',
+      url: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4',
+      keywords: ['surreal', 'abstract', 'industrial', 'mechanical', 'dream', 'gears', 'metal', 'sci-fi', 'futuristic', 'cyberpunk'],
+    },
+    {
+      id: 'cartoon',
+      label: 'Animated cartoon',
+      url: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
+      keywords: ['cartoon', 'anime', 'funny', 'cute', 'animal', 'rabbit', 'forest', 'comedy', 'kid', 'pixar'],
+    },
+    {
+      id: 'action',
+      label: 'High-energy action',
+      url: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
+      keywords: ['action', 'fire', 'burn', 'explosion', 'energy', 'intense', 'neon', 'fast', 'race'],
+    },
+    {
+      id: 'joyride',
+      label: 'Sunny joyride',
+      url: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4',
+      keywords: ['joy', 'happy', 'sunny', 'party', 'ride', 'beach', 'summer', 'vacation', 'family'],
+    },
+  ];
+  const FALLBACK_CLIP_URL = BUILTIN_CLIPS[0].url;
+
+  // Default text-to-video model on Hugging Face. Free-tier eligible. Returns
+  // a small (~16 frame, ~256x256) MP4. Slow on cold start (model load), so we
+  // surface the wait time to the caller.
+  const HF_T2V_MODEL = 'damo-vilab/text-to-video-ms-1.7b';
 
   const PROVIDERS = {
-    replicate: { label: 'Replicate', env: 'replicate' },
-    stability: { label: 'Stability AI', env: 'stability' },
-    runway: { label: 'RunwayML', env: 'runway' },
-    pika: { label: 'Pika', env: 'pika' },
-    luma: { label: 'Luma Dream Machine', env: 'luma' },
+    'devin-builtin': { label: 'Devin built-in', requiresKey: false, requiresProxy: false },
+    huggingface: { label: 'Hugging Face', requiresKey: true, requiresProxy: false, keyHelp: 'Free token at huggingface.co/settings/tokens' },
+    replicate: { label: 'Replicate', requiresKey: true, requiresProxy: true },
+    stability: { label: 'Stability AI', requiresKey: true, requiresProxy: true },
+    runway: { label: 'RunwayML', requiresKey: true, requiresProxy: true },
+    pika: { label: 'Pika', requiresKey: true, requiresProxy: true },
+    luma: { label: 'Luma Dream Machine', requiresKey: true, requiresProxy: true },
   };
 
   function activeProvider() {
     const settings = Storage.getSettings();
-    return settings.activeProvider || 'replicate';
+    return settings.activeProvider || 'devin-builtin';
   }
 
   function hasKey(provider = activeProvider()) {
@@ -39,11 +88,33 @@ const VideoAPI = (() => {
     return settings.proxyUrl || '';
   }
 
+  function pickBuiltinClip({ prompt, style } = {}) {
+    const haystack = `${prompt || ''} ${style || ''}`.toLowerCase();
+    let best = null;
+    let bestScore = 0;
+    for (const clip of BUILTIN_CLIPS) {
+      const score = clip.keywords.reduce((s, kw) => (haystack.includes(kw) ? s + 1 : s), 0);
+      if (score > bestScore) {
+        best = clip;
+        bestScore = score;
+      }
+    }
+    if (best) return best;
+    // No keyword hit — pick deterministically based on prompt hash so the
+    // same prompt always returns the same clip (so tests are reproducible).
+    const seed = haystack.length
+      ? Array.from(haystack).reduce((a, c) => (a * 31 + c.charCodeAt(0)) >>> 0, 7)
+      : Date.now();
+    return BUILTIN_CLIPS[seed % BUILTIN_CLIPS.length];
+  }
+
   /**
-   * Simulate a generation pipeline with progress callbacks.
-   * Resolves with { videoUrl, demo: true } so the UI can mark it as a demo.
+   * Built-in "Devin Studio" simulation. Reports progress over `totalMs` and
+   * resolves with a curated sample clip URL. `demo: true` so the UI can label
+   * it as a built-in sample.
    */
-  async function simulate({ onProgress, totalMs = 4500 }) {
+  async function simulateBuiltin({ onProgress, totalMs = 4500, prompt, style }) {
+    const clip = pickBuiltinClip({ prompt, style });
     const start = Date.now();
     return new Promise((resolve) => {
       const tick = () => {
@@ -51,7 +122,7 @@ const VideoAPI = (() => {
         const pct = Math.min(100, (elapsed / totalMs) * 100);
         if (onProgress) onProgress(pct);
         if (elapsed >= totalMs) {
-          resolve({ videoUrl: DEMO_VIDEO_URL, demo: true });
+          resolve({ videoUrl: clip.url, demo: true, builtinClipLabel: clip.label });
         } else {
           setTimeout(tick, 120);
         }
@@ -61,22 +132,93 @@ const VideoAPI = (() => {
   }
 
   /**
-   * Text → Video. Real implementation would POST to provider with the prompt.
-   * Currently routes through simulate() unless a proxy URL is configured.
+   * Call the Hugging Face Inference API for text-to-video. Handles the
+   * "model is loading" 503 by waiting `estimated_time` seconds and retrying
+   * once. Returns a blob: URL the <video> tag can play directly.
+   *
+   * Note: the returned blob URL is owned by the calling page and will be
+   * freed when the page unloads. Studios that re-generate revoke the previous
+   * URL before assigning a new one.
+   */
+  async function huggingfaceTextToVideo({ prompt, onProgress, model = HF_T2V_MODEL }) {
+    const token = Storage.getApiKey('huggingface');
+    if (!token) throw new Error('Hugging Face token missing — add it in Settings.');
+
+    const url = `https://api-inference.huggingface.co/models/${model}`;
+    const body = JSON.stringify({ inputs: prompt });
+    const headers = {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    };
+
+    if (onProgress) onProgress(5);
+    let resp = await fetch(url, { method: 'POST', headers, body });
+    if (resp.status === 503) {
+      // Cold-start: read the estimated time and try once more.
+      let estimatedSec = 30;
+      try {
+        const info = await resp.json();
+        if (info && typeof info.estimated_time === 'number') {
+          estimatedSec = Math.min(120, Math.max(10, Math.ceil(info.estimated_time)));
+        }
+      } catch {
+        /* ignore */
+      }
+      // Animate the progress bar through the wait so the UI doesn't look stuck.
+      const start = Date.now();
+      const totalMs = estimatedSec * 1000;
+      await new Promise((resolve) => {
+        const tick = () => {
+          const elapsed = Date.now() - start;
+          const pct = Math.min(80, 5 + (elapsed / totalMs) * 75);
+          if (onProgress) onProgress(pct);
+          if (elapsed >= totalMs) resolve();
+          else setTimeout(tick, 200);
+        };
+        tick();
+      });
+      resp = await fetch(url, { method: 'POST', headers, body });
+    }
+    if (!resp.ok) {
+      let detail = `HTTP ${resp.status}`;
+      try {
+        const info = await resp.json();
+        if (info && info.error) detail = info.error;
+      } catch {
+        /* ignore */
+      }
+      throw new Error(`Hugging Face: ${detail}`);
+    }
+    if (onProgress) onProgress(95);
+    const blob = await resp.blob();
+    if (onProgress) onProgress(100);
+    const videoUrl = URL.createObjectURL(blob);
+    return { videoUrl, demo: false, providerLabel: 'Hugging Face', isBlob: true };
+  }
+
+  /**
+   * Text → Video. Routes by active provider.
    */
   async function textToVideo({ prompt, duration, aspectRatio, style, onProgress }) {
     if (!prompt || !prompt.trim()) {
       throw new Error('Prompt is required.');
     }
+    const provider = activeProvider();
 
-    if (!hasKey() || !getProxyUrl()) {
-      return await simulate({ onProgress });
+    if (provider === 'huggingface') {
+      if (!hasKey('huggingface')) {
+        // No key: gracefully fall back to built-in so the UI still works.
+        return await simulateBuiltin({ onProgress, prompt, style });
+      }
+      return await huggingfaceTextToVideo({ prompt, onProgress });
+    }
+
+    if (provider === 'devin-builtin' || !hasKey() || !getProxyUrl()) {
+      return await simulateBuiltin({ onProgress, prompt, style });
     }
 
     const proxyUrl = getProxyUrl().replace(/\/$/, '');
-    const provider = activeProvider();
     const apiKey = Storage.getApiKey(provider);
-
     const response = await fetch(`${proxyUrl}/text-to-video`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -88,17 +230,18 @@ const VideoAPI = (() => {
   }
 
   /**
-   * Image → Video. Accepts a File or dataURL.
+   * Image → Video. Accepts a File or dataURL. HF doesn't have a good free-tier
+   * image-to-video model so the HF provider falls back to built-in here.
    */
   async function imageToVideo({ image, motion, prompt, duration, onProgress }) {
     if (!image) throw new Error('Source image is required.');
+    const provider = activeProvider();
 
-    if (!hasKey() || !getProxyUrl()) {
-      return await simulate({ onProgress });
+    if (provider === 'devin-builtin' || provider === 'huggingface' || !hasKey() || !getProxyUrl()) {
+      return await simulateBuiltin({ onProgress, prompt, style: motion });
     }
 
     const proxyUrl = getProxyUrl().replace(/\/$/, '');
-    const provider = activeProvider();
     const apiKey = Storage.getApiKey(provider);
 
     const form = new FormData();
@@ -123,17 +266,18 @@ const VideoAPI = (() => {
   }
 
   /**
-   * Video → Video (style transfer / restyle).
+   * Video → Video (style transfer / restyle). HF and built-in both fall back
+   * to a curated sample clip for now.
    */
-  async function videoToVideo({ video, prompt, strength, onProgress }) {
+  async function videoToVideo({ video, prompt, strength, style, onProgress }) {
     if (!video) throw new Error('Source video is required.');
+    const provider = activeProvider();
 
-    if (!hasKey() || !getProxyUrl()) {
-      return await simulate({ onProgress });
+    if (provider === 'devin-builtin' || provider === 'huggingface' || !hasKey() || !getProxyUrl()) {
+      return await simulateBuiltin({ onProgress, prompt, style });
     }
 
     const proxyUrl = getProxyUrl().replace(/\/$/, '');
-    const provider = activeProvider();
     const apiKey = Storage.getApiKey(provider);
 
     const form = new FormData();
@@ -154,12 +298,14 @@ const VideoAPI = (() => {
 
   return {
     PROVIDERS,
+    BUILTIN_CLIPS,
     activeProvider,
     hasKey,
+    pickBuiltinClip,
     textToVideo,
     imageToVideo,
     videoToVideo,
-    DEMO_VIDEO_URL,
+    FALLBACK_CLIP_URL,
   };
 })();
 

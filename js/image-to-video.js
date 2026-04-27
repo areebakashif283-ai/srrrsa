@@ -15,7 +15,7 @@
 
   const state = { motion: 'subtle', file: null, thumbPromise: null, currentVideoUrl: null };
 
-  if (!VideoAPI.hasKey()) apiNotice.style.display = 'block';
+  App.renderProviderNotice(apiNotice, 'image');
 
   function setupChips(name) {
     document.querySelectorAll(`[data-chip-group="${name}"] .chip`).forEach((chip) => {
@@ -113,7 +113,7 @@
       </div>`;
   }
 
-  function showResult(videoUrl, demo) {
+  function showResult(videoUrl, demo, builtinClipLabel) {
     previewStage.replaceChildren();
     const video = document.createElement('video');
     video.className = 'preview-video-result';
@@ -128,7 +128,7 @@
       const badge = document.createElement('span');
       badge.className = 'badge beta';
       badge.style.cssText = 'position:absolute;top:14px;right:14px;';
-      badge.textContent = 'Demo output';
+      badge.textContent = builtinClipLabel ? `Devin built-in · ${builtinClipLabel}` : 'Demo output';
       previewStage.appendChild(badge);
     }
     previewActions.style.display = 'flex';
@@ -184,7 +184,7 @@
           }
         },
       });
-      showResult(result.videoUrl, result.demo);
+      showResult(result.videoUrl, result.demo, result.builtinClipLabel);
       const sourceImage = submission.thumbPromise ? await submission.thumbPromise : null;
       try {
         Storage.addHistory({

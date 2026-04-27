@@ -13,8 +13,7 @@
   const state = { style: 'cinematic', aspect: '16:9', currentVideoUrl: null };
 
   function updateNotice() {
-    if (!VideoAPI.hasKey()) apiNotice.style.display = 'block';
-    else apiNotice.style.display = 'none';
+    App.renderProviderNotice(apiNotice, 'text');
   }
   updateNotice();
 
@@ -53,7 +52,7 @@
       </div>`;
   }
 
-  function showResult(videoUrl, demo) {
+  function showResult(videoUrl, demo, builtinClipLabel) {
     previewStage.replaceChildren();
     const video = document.createElement('video');
     video.className = 'preview-video-result';
@@ -68,7 +67,7 @@
       const badge = document.createElement('span');
       badge.className = 'badge beta';
       badge.style.cssText = 'position:absolute;top:14px;right:14px;';
-      badge.textContent = 'Demo output';
+      badge.textContent = builtinClipLabel ? `Devin built-in · ${builtinClipLabel}` : 'Demo output';
       previewStage.appendChild(badge);
     }
     previewActions.style.display = 'flex';
@@ -116,22 +115,35 @@
           }
         },
       });
-      showResult(result.videoUrl, result.demo);
-      try {
-        Storage.addHistory({
-          type: 'text-to-video',
-          prompt,
-          style: state.style,
-          aspect: state.aspect,
-          duration: Number(durationEl.value),
-          videoUrl: result.videoUrl,
-          demo: result.demo,
-        });
-      } catch (storageErr) {
-        console.warn('History save failed', storageErr);
-        App.toast('Saved video, but history is full.', 'info');
+      // Revoke the previous blob: URL (if any) before swapping in the new one.
+      if (state.currentVideoUrl && state.currentVideoUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(state.currentVideoUrl);
       }
-      App.toast(result.demo ? 'Demo video ready.' : 'Video generated successfully!', 'success');
+      showResult(result.videoUrl, result.demo, result.builtinClipLabel);
+      // blob: URLs from Hugging Face don't survive a page reload, so skip
+      // persisting them — the user should download to keep them.
+      if (!result.isBlob) {
+        try {
+          Storage.addHistory({
+            type: 'text-to-video',
+            prompt,
+            style: state.style,
+            aspect: state.aspect,
+            duration: Number(durationEl.value),
+            videoUrl: result.videoUrl,
+            demo: result.demo,
+          });
+        } catch (storageErr) {
+          console.warn('History save failed', storageErr);
+          App.toast('Saved video, but history is full.', 'info');
+        }
+      }
+      const successMsg = result.isBlob
+        ? 'Generated. Download to keep it (won\u2019t persist after reload).'
+        : result.demo
+          ? 'Devin built-in clip ready.'
+          : 'Video generated successfully!';
+      App.toast(successMsg, 'success');
     } catch (err) {
       console.error(err);
       showError(err.message);
