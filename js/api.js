@@ -90,7 +90,7 @@ const VideoAPI = (() => {
   /**
    * Image → Video. Accepts a File or dataURL.
    */
-  async function imageToVideo({ image, motion, duration, onProgress }) {
+  async function imageToVideo({ image, motion, prompt, duration, onProgress }) {
     if (!image) throw new Error('Source image is required.');
 
     if (!hasKey() || !getProxyUrl()) {
@@ -105,7 +105,8 @@ const VideoAPI = (() => {
     form.append('provider', provider);
     form.append('apiKey', apiKey);
     form.append('motion', motion || 'subtle');
-    form.append('duration', String(duration || 4));
+    form.append('prompt', prompt || '');
+    form.append('duration', String(duration ?? 4));
     if (image instanceof File) {
       form.append('image', image);
     } else {
@@ -139,7 +140,7 @@ const VideoAPI = (() => {
     form.append('provider', provider);
     form.append('apiKey', apiKey);
     form.append('prompt', prompt || '');
-    form.append('strength', String(strength || 0.5));
+    form.append('strength', String(strength ?? 0.5));
     form.append('video', video);
 
     const response = await fetch(`${proxyUrl}/video-to-video`, {
