@@ -66,10 +66,10 @@ const Storage = (() => {
         localStorage.setItem(HISTORY_KEY, JSON.stringify([slim]));
         return slim;
       } catch {
-        /* ignore */
+        /* fall through to throw below */
       }
     }
-    return record;
+    throw new Error('Could not save history entry: storage quota exceeded.');
   }
 
   function removeHistory(id) {
@@ -93,4 +93,7 @@ const Storage = (() => {
   };
 })();
 
-window.Storage = Storage;
+// Top-level `const Storage` is already visible to subsequent <script> tags via
+// the realm's global lexical environment, so we deliberately do NOT assign it
+// to `window` (that would shadow the native Web Storage API constructor).
+
