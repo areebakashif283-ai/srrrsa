@@ -47,7 +47,7 @@ const Storage = (() => {
     let trimmed = items.slice(0, 50);
     // If the payload is too large, evict oldest entries until it fits or we
     // are forced to drop the entry's source image.
-    while (trimmed.length > 1) {
+    while (trimmed.length >= 1) {
       try {
         localStorage.setItem(HISTORY_KEY, JSON.stringify(trimmed));
         return record;
