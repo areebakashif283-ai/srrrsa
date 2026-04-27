@@ -13,7 +13,7 @@
   const apiNotice = document.getElementById('api-notice');
   const promptEl = document.getElementById('img-prompt');
 
-  const state = { motion: 'subtle', file: null, thumbDataUrl: null, currentVideoUrl: null };
+  const state = { motion: 'subtle', file: null, thumbPromise: null, currentVideoUrl: null };
 
   if (!VideoAPI.hasKey()) apiNotice.style.display = 'block';
 
@@ -54,8 +54,10 @@
     previewImage.style.display = 'block';
     generateBtn.disabled = false;
     // Build a tiny thumbnail (max 256px) for localStorage so we don't hit the quota.
-    buildThumbnail(file, 256).then((thumb) => { state.thumbDataUrl = thumb; })
-      .catch(() => { state.thumbDataUrl = null; });
+    // Store the promise so generate() can await the thumbnail tied to THIS file,
+    // avoiding races where the user clicks Generate before it resolves or swaps
+    // images quickly and a stale thumbnail wins.
+    state.thumbPromise = buildThumbnail(file, 256).catch(() => null);
   }
 
   function buildThumbnail(file, maxDim) {
@@ -173,13 +175,14 @@
         },
       });
       showResult(result.videoUrl, result.demo);
+      const sourceImage = state.thumbPromise ? await state.thumbPromise : null;
       try {
         Storage.addHistory({
           type: 'image-to-video',
           prompt: promptEl.value,
           motion: state.motion,
           duration: Number(durationEl.value),
-          sourceImage: state.thumbDataUrl,
+          sourceImage,
           videoUrl: result.videoUrl,
           demo: result.demo,
         });
