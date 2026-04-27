@@ -40,6 +40,9 @@
       return;
     }
     state.file = file;
+    if (previewSource.src && previewSource.src.startsWith('blob:')) {
+      URL.revokeObjectURL(previewSource.src);
+    }
     previewSource.src = URL.createObjectURL(file);
     previewSource.style.display = 'block';
     generateBtn.disabled = false;
@@ -71,12 +74,38 @@
   }
 
   function showResult(videoUrl, demo) {
-    previewStage.innerHTML = `
-      <video class="preview-video-result" controls autoplay muted loop playsinline src="${videoUrl}"></video>
-      ${demo ? '<span class="badge beta" style="position:absolute;top:14px;right:14px;">Demo output</span>' : ''}
-    `;
+    previewStage.replaceChildren();
+    const video = document.createElement('video');
+    video.className = 'preview-video-result';
+    video.controls = true;
+    video.autoplay = true;
+    video.muted = true;
+    video.loop = true;
+    video.playsInline = true;
+    video.src = videoUrl;
+    previewStage.appendChild(video);
+    if (demo) {
+      const badge = document.createElement('span');
+      badge.className = 'badge beta';
+      badge.style.cssText = 'position:absolute;top:14px;right:14px;';
+      badge.textContent = 'Demo output';
+      previewStage.appendChild(badge);
+    }
     previewActions.style.display = 'flex';
     state.currentVideoUrl = videoUrl;
+  }
+
+  function showError(message) {
+    previewStage.replaceChildren();
+    const wrap = document.createElement('div');
+    wrap.className = 'preview-empty';
+    const h3 = document.createElement('h3');
+    h3.style.color = '#ef4444';
+    h3.textContent = 'Generation failed';
+    const p = document.createElement('p');
+    p.textContent = message || 'Try again.';
+    wrap.append(h3, p);
+    previewStage.appendChild(wrap);
   }
 
   async function generate() {
@@ -115,7 +144,7 @@
       });
       App.toast(result.demo ? 'Demo restyle ready.' : 'Restyle complete!', 'success');
     } catch (err) {
-      previewStage.innerHTML = `<div class="preview-empty"><h3 style="color:#ef4444;">Generation failed</h3><p>${err.message || 'Try again.'}</p></div>`;
+      showError(err.message);
       App.toast(err.message || 'Generation failed.', 'error');
     } finally {
       generateBtn.disabled = false;

@@ -25,52 +25,86 @@
     let items = Storage.getHistory();
     if (activeFilter !== 'all') items = items.filter((it) => it.type === activeFilter);
 
+    content.replaceChildren();
     if (!items.length) {
-      content.innerHTML = `
-        <div class="gallery-empty">
-          <div class="icon-wrap">
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"></polygon><rect x="1" y="5" width="15" height="14" rx="2"></rect></svg>
-          </div>
-          <h3 style="font-family:var(--font-display); margin-bottom:8px; color:var(--text);">No generations yet</h3>
-          <p>Create your first video and it will appear here.</p>
-          <a class="btn btn-primary" href="text-to-video.html" style="margin-top:18px;">Open studio</a>
-        </div>
-      `;
+      content.appendChild(buildEmptyState());
       return;
     }
-
-    content.innerHTML = `<div class="gallery-grid">${items.map(renderItem).join('')}</div>`;
-    document.querySelectorAll('.gallery-item').forEach((el) => {
-      el.addEventListener('click', () => openItem(el.dataset.id));
-    });
+    const grid = document.createElement('div');
+    grid.className = 'gallery-grid';
+    items.forEach((it) => grid.appendChild(buildItem(it)));
+    content.appendChild(grid);
   }
 
-  function renderItem(it) {
+  function buildEmptyState() {
+    const wrap = document.createElement('div');
+    wrap.className = 'gallery-empty';
+    wrap.innerHTML = `
+      <div class="icon-wrap">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"></polygon><rect x="1" y="5" width="15" height="14" rx="2"></rect></svg>
+      </div>
+      <h3 style="font-family:var(--font-display); margin-bottom:8px; color:var(--text);">No generations yet</h3>
+      <p>Create your first video and it will appear here.</p>
+      <a class="btn btn-primary" href="text-to-video.html" style="margin-top:18px;">Open studio</a>
+    `;
+    return wrap;
+  }
+
+  function buildItem(it) {
     const title = it.prompt
       ? it.prompt.slice(0, 80) + (it.prompt.length > 80 ? '…' : '')
       : TYPE_LABEL[it.type];
-    const thumb = it.sourceImage
-      ? `<img src="${it.sourceImage}" alt="" />`
-      : `<video src="${it.videoUrl}" muted preload="metadata"></video>`;
-    return `
-      <div class="gallery-item" data-id="${it.id}">
-        <div class="thumb">
-          ${thumb}
-          <div class="play-overlay">
-            <svg width="40" height="40" viewBox="0 0 24 24" fill="#fff" stroke="#fff" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
-          </div>
-          ${it.demo ? '<span class="badge beta" style="position:absolute; top:8px; left:8px;">Demo</span>' : ''}
-        </div>
-        <div class="meta">
-          <div class="meta-title">${escapeHtml(title)}</div>
-          <div class="meta-sub"><span>${TYPE_LABEL[it.type]}</span><span>${App.formatDate(it.createdAt)}</span></div>
-        </div>
-      </div>
-    `;
-  }
 
-  function escapeHtml(s) {
-    return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    const item = document.createElement('div');
+    item.className = 'gallery-item';
+    item.dataset.id = it.id;
+
+    const thumb = document.createElement('div');
+    thumb.className = 'thumb';
+
+    let media;
+    if (it.sourceImage) {
+      media = document.createElement('img');
+      media.alt = '';
+    } else {
+      media = document.createElement('video');
+      media.muted = true;
+      media.preload = 'metadata';
+    }
+    // Setting .src as a property avoids HTML parsing of any malicious URL.
+    media.src = it.sourceImage || it.videoUrl;
+    thumb.appendChild(media);
+
+    const play = document.createElement('div');
+    play.className = 'play-overlay';
+    play.innerHTML = '<svg width="40" height="40" viewBox="0 0 24 24" fill="#fff" stroke="#fff" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>';
+    thumb.appendChild(play);
+
+    if (it.demo) {
+      const badge = document.createElement('span');
+      badge.className = 'badge beta';
+      badge.style.cssText = 'position:absolute; top:8px; left:8px;';
+      badge.textContent = 'Demo';
+      thumb.appendChild(badge);
+    }
+
+    const meta = document.createElement('div');
+    meta.className = 'meta';
+    const metaTitle = document.createElement('div');
+    metaTitle.className = 'meta-title';
+    metaTitle.textContent = title;
+    const metaSub = document.createElement('div');
+    metaSub.className = 'meta-sub';
+    const subType = document.createElement('span');
+    subType.textContent = TYPE_LABEL[it.type];
+    const subDate = document.createElement('span');
+    subDate.textContent = App.formatDate(it.createdAt);
+    metaSub.append(subType, subDate);
+    meta.append(metaTitle, metaSub);
+
+    item.append(thumb, meta);
+    item.addEventListener('click', () => openItem(it.id));
+    return item;
   }
 
   function openItem(id) {

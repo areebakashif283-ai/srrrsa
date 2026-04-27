@@ -44,8 +44,31 @@ const Storage = (() => {
       ...entry,
     };
     items.unshift(record);
-    const trimmed = items.slice(0, 50);
-    localStorage.setItem(HISTORY_KEY, JSON.stringify(trimmed));
+    let trimmed = items.slice(0, 50);
+    // If the payload is too large, evict oldest entries until it fits or we
+    // are forced to drop the entry's source image.
+    while (trimmed.length > 1) {
+      try {
+        localStorage.setItem(HISTORY_KEY, JSON.stringify(trimmed));
+        return record;
+      } catch (e) {
+        if (e && (e.name === 'QuotaExceededError' || e.code === 22)) {
+          trimmed.pop();
+        } else {
+          throw e;
+        }
+      }
+    }
+    // Last resort: drop sourceImage on the new record and try once more.
+    if (record.sourceImage) {
+      const slim = { ...record, sourceImage: null };
+      try {
+        localStorage.setItem(HISTORY_KEY, JSON.stringify([slim]));
+        return slim;
+      } catch {
+        /* ignore */
+      }
+    }
     return record;
   }
 

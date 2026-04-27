@@ -13,7 +13,7 @@
   const apiNotice = document.getElementById('api-notice');
   const promptEl = document.getElementById('img-prompt');
 
-  const state = { motion: 'subtle', file: null, dataUrl: null, currentVideoUrl: null };
+  const state = { motion: 'subtle', file: null, thumbDataUrl: null, currentVideoUrl: null };
 
   if (!VideoAPI.hasKey()) apiNotice.style.display = 'block';
 
@@ -43,14 +43,41 @@
       return;
     }
     state.file = file;
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      state.dataUrl = e.target.result;
-      previewImage.src = state.dataUrl;
-      previewImage.style.display = 'block';
-      generateBtn.disabled = false;
-    };
-    reader.readAsDataURL(file);
+    const objectUrl = URL.createObjectURL(file);
+    if (previewImage.src && previewImage.src.startsWith('blob:')) {
+      URL.revokeObjectURL(previewImage.src);
+    }
+    previewImage.src = objectUrl;
+    previewImage.style.display = 'block';
+    generateBtn.disabled = false;
+    // Build a tiny thumbnail (max 256px) for localStorage so we don't hit the quota.
+    buildThumbnail(file, 256).then((thumb) => { state.thumbDataUrl = thumb; })
+      .catch(() => { state.thumbDataUrl = null; });
+  }
+
+  function buildThumbnail(file, maxDim) {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      img.onload = () => {
+        const ratio = Math.min(1, maxDim / Math.max(img.width, img.height));
+        const w = Math.max(1, Math.round(img.width * ratio));
+        const h = Math.max(1, Math.round(img.height * ratio));
+        const canvas = document.createElement('canvas');
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, w, h);
+        URL.revokeObjectURL(url);
+        try {
+          resolve(canvas.toDataURL('image/jpeg', 0.7));
+        } catch (e) {
+          reject(e);
+        }
+      };
+      img.onerror = (e) => { URL.revokeObjectURL(url); reject(e); };
+      img.src = url;
+    });
   }
 
   fileInput.addEventListener('change', (e) => handleFile(e.target.files[0]));
@@ -82,12 +109,38 @@
   }
 
   function showResult(videoUrl, demo) {
-    previewStage.innerHTML = `
-      <video class="preview-video-result" controls autoplay muted loop playsinline src="${videoUrl}"></video>
-      ${demo ? '<span class="badge beta" style="position:absolute;top:14px;right:14px;">Demo output</span>' : ''}
-    `;
+    previewStage.replaceChildren();
+    const video = document.createElement('video');
+    video.className = 'preview-video-result';
+    video.controls = true;
+    video.autoplay = true;
+    video.muted = true;
+    video.loop = true;
+    video.playsInline = true;
+    video.src = videoUrl;
+    previewStage.appendChild(video);
+    if (demo) {
+      const badge = document.createElement('span');
+      badge.className = 'badge beta';
+      badge.style.cssText = 'position:absolute;top:14px;right:14px;';
+      badge.textContent = 'Demo output';
+      previewStage.appendChild(badge);
+    }
     previewActions.style.display = 'flex';
     state.currentVideoUrl = videoUrl;
+  }
+
+  function showError(message) {
+    previewStage.replaceChildren();
+    const wrap = document.createElement('div');
+    wrap.className = 'preview-empty';
+    const h3 = document.createElement('h3');
+    h3.style.color = '#ef4444';
+    h3.textContent = 'Generation failed';
+    const p = document.createElement('p');
+    p.textContent = message || 'Try again.';
+    wrap.append(h3, p);
+    previewStage.appendChild(wrap);
   }
 
   async function generate() {
@@ -117,18 +170,23 @@
         },
       });
       showResult(result.videoUrl, result.demo);
-      Storage.addHistory({
-        type: 'image-to-video',
-        prompt: promptEl.value,
-        motion: state.motion,
-        duration: Number(durationEl.value),
-        sourceImage: state.dataUrl,
-        videoUrl: result.videoUrl,
-        demo: result.demo,
-      });
+      try {
+        Storage.addHistory({
+          type: 'image-to-video',
+          prompt: promptEl.value,
+          motion: state.motion,
+          duration: Number(durationEl.value),
+          sourceImage: state.thumbDataUrl,
+          videoUrl: result.videoUrl,
+          demo: result.demo,
+        });
+      } catch (storageErr) {
+        console.warn('History save failed (storage quota?)', storageErr);
+        App.toast('Saved video, but history is full.', 'info');
+      }
       App.toast(result.demo ? 'Demo animation ready.' : 'Animation generated!', 'success');
     } catch (err) {
-      previewStage.innerHTML = `<div class="preview-empty"><h3 style="color:#ef4444;">Generation failed</h3><p>${err.message || 'Try again.'}</p></div>`;
+      showError(err.message);
       App.toast(err.message || 'Generation failed.', 'error');
     } finally {
       generateBtn.disabled = false;

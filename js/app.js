@@ -15,12 +15,25 @@ const App = (() => {
     const t = document.createElement('div');
     t.className = `toast ${type}`;
     const icon = type === 'success' ? '✓' : type === 'error' ? '✕' : 'ℹ';
-    t.innerHTML = `<span style="font-weight:700;color:${type === 'success' ? '#10b981' : type === 'error' ? '#ef4444' : '#06b6d4'}">${icon}</span><span>${message}</span>`;
+    const iconColor = type === 'success' ? '#10b981' : type === 'error' ? '#ef4444' : '#06b6d4';
+    const iconEl = document.createElement('span');
+    iconEl.style.fontWeight = '700';
+    iconEl.style.color = iconColor;
+    iconEl.textContent = icon;
+    const msgEl = document.createElement('span');
+    msgEl.textContent = message;
+    t.append(iconEl, msgEl);
     stack.appendChild(t);
     setTimeout(() => {
       t.style.animation = 'toastIn 0.3s ease reverse';
       setTimeout(() => t.remove(), 300);
     }, duration);
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, (c) => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+    }[c]));
   }
 
   function setupNavToggle() {
@@ -86,7 +99,7 @@ const App = (() => {
     highlightActiveNav();
   });
 
-  return { toast, downloadBlob, formatDate };
+  return { toast, downloadBlob, formatDate, escapeHtml };
 })();
 
 window.App = App;
