@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gallery — Lumen Studio</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css" />
+  <link rel="icon" type="image/svg+xml" href="assets/logo.svg" />
+</head>
+<body class="page">
+  <canvas id="particles-canvas"></canvas>
+
+  <header class="site-header">
+    <div class="container">
+      <a class="brand" href="index.html">
+        <span class="brand-mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg></span>
+        <span class="brand-name">Lumen <span>Studio</span></span>
+      </a>
+      <nav class="primary-nav">
+        <a href="index.html">Home</a>
+        <a href="text-to-video.html">Text → Video</a>
+        <a href="image-to-video.html">Image → Video</a>
+        <a href="video-to-video.html">Video Restyle</a>
+        <a href="gallery.html">Gallery</a>
+        <a href="settings.html">Settings</a>
+      </nav>
+      <button class="nav-toggle" aria-label="Open navigation"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg></button>
+    </div>
+  </header>
+
+  <main>
+    <section class="section" style="padding-top:48px;">
+      <div class="container">
+        <div class="section-head" style="text-align:left; margin-bottom:24px; display:flex; justify-content:space-between; align-items:flex-end; flex-wrap:wrap; gap:16px;">
+          <div>
+            <div class="eyebrow"><span class="dot"></span> Gallery</div>
+            <h2 style="margin-bottom:8px;">Your generations</h2>
+            <p style="margin:0;">Everything you create with Lumen is saved locally in your browser.</p>
+          </div>
+          <div style="display:flex; gap:10px;">
+            <div class="chip-group" id="filter-group">
+              <button class="chip active" data-filter="all">All</button>
+              <button class="chip" data-filter="text-to-video">Text</button>
+              <button class="chip" data-filter="image-to-video">Image</button>
+              <button class="chip" data-filter="video-to-video">Restyle</button>
+            </div>
+            <button class="btn btn-ghost" id="clear-btn">Clear all</button>
+          </div>
+        </div>
+
+        <div id="gallery-content"></div>
+      </div>
+    </section>
+
+    <div class="modal" id="player-modal">
+      <div class="modal-card" style="max-width:720px;">
+        <button class="modal-close" id="modal-close">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
+        <h2 id="modal-title">Generation</h2>
+        <p class="lead" id="modal-meta"></p>
+        <video id="modal-video" controls autoplay style="width:100%; border-radius:12px; background:#000;"></video>
+        <p id="modal-prompt" style="margin-top:16px; color:var(--text-dim); font-size:0.9rem;"></p>
+        <div style="display:flex; gap:10px; margin-top:18px; flex-wrap:wrap;">
+          <button class="btn btn-ghost" id="modal-download">Download</button>
+          <button class="btn btn-ghost" id="modal-delete">Delete</button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <p>Built with ♥ in pure HTML, CSS &amp; JS · <a href="settings.html">Configure</a> · <a href="gallery.html">Gallery</a></p>
+    </div>
+  </footer>
+
+  <script src="js/particles.js"></script>
+  <script src="js/storage.js"></script>
+  <script src="js/app.js"></script>
+  <script src="js/gallery.js"></script>
+</body>
+</html>

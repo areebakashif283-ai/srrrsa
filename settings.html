@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Settings — Lumen Studio</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css" />
+  <link rel="icon" type="image/svg+xml" href="assets/logo.svg" />
+</head>
+<body class="page">
+  <canvas id="particles-canvas"></canvas>
+
+  <header class="site-header">
+    <div class="container">
+      <a class="brand" href="index.html">
+        <span class="brand-mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg></span>
+        <span class="brand-name">Lumen <span>Studio</span></span>
+      </a>
+      <nav class="primary-nav">
+        <a href="index.html">Home</a>
+        <a href="text-to-video.html">Text → Video</a>
+        <a href="image-to-video.html">Image → Video</a>
+        <a href="video-to-video.html">Video Restyle</a>
+        <a href="gallery.html">Gallery</a>
+        <a href="settings.html">Settings</a>
+      </nav>
+      <button class="nav-toggle" aria-label="Open navigation"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg></button>
+    </div>
+  </header>
+
+  <main>
+    <section class="section" style="padding-top:48px;">
+      <div class="container" style="max-width:760px;">
+        <div class="section-head" style="text-align:left; margin-bottom:24px;">
+          <div class="eyebrow"><span class="dot"></span> Settings</div>
+          <h2 style="margin-bottom:8px;">Configure Lumen Studio</h2>
+          <p style="margin:0;">Add API keys to enable real AI generation. Everything is stored locally in your browser — never on a server.</p>
+        </div>
+
+        <div class="notice">
+          <strong>Privacy:</strong> Your keys live only in <code>localStorage</code> on this device. They never leave your browser unless you configure a proxy URL below.
+        </div>
+
+        <div class="settings-grid">
+          <div class="settings-card">
+            <h3>Active provider</h3>
+            <p class="desc">Choose which provider Lumen routes generations to.</p>
+            <select class="select" id="active-provider">
+              <option value="replicate">Replicate</option>
+              <option value="stability">Stability AI</option>
+              <option value="runway">RunwayML</option>
+              <option value="pika">Pika</option>
+              <option value="luma">Luma Dream Machine</option>
+            </select>
+          </div>
+
+          <div class="settings-card">
+            <h3>Replicate API token</h3>
+            <p class="desc">Used for models like <code>stability-ai/stable-video-diffusion</code>. Get yours at <a href="https://replicate.com/account/api-tokens" target="_blank" rel="noreferrer">replicate.com</a>.</p>
+            <div class="input-group">
+              <input type="password" class="input" id="key-replicate" placeholder="r8_…" autocomplete="off" />
+              <button class="btn btn-ghost" data-save="replicate">Save</button>
+            </div>
+          </div>
+
+          <div class="settings-card">
+            <h3>Stability AI key</h3>
+            <p class="desc">For <code>stable-video</code> generations. Get a key at <a href="https://platform.stability.ai/account/keys" target="_blank" rel="noreferrer">platform.stability.ai</a>.</p>
+            <div class="input-group">
+              <input type="password" class="input" id="key-stability" placeholder="sk-…" autocomplete="off" />
+              <button class="btn btn-ghost" data-save="stability">Save</button>
+            </div>
+          </div>
+
+          <div class="settings-card">
+            <h3>RunwayML key</h3>
+            <p class="desc">For Gen-3 Alpha and Gen-2 video models. Get a key at <a href="https://app.runwayml.com/account" target="_blank" rel="noreferrer">runwayml.com</a>.</p>
+            <div class="input-group">
+              <input type="password" class="input" id="key-runway" placeholder="key_…" autocomplete="off" />
+              <button class="btn btn-ghost" data-save="runway">Save</button>
+            </div>
+          </div>
+
+          <div class="settings-card">
+            <h3>Pika key</h3>
+            <p class="desc">Pika Labs API key for cinematic generations.</p>
+            <div class="input-group">
+              <input type="password" class="input" id="key-pika" placeholder="pk_…" autocomplete="off" />
+              <button class="btn btn-ghost" data-save="pika">Save</button>
+            </div>
+          </div>
+
+          <div class="settings-card">
+            <h3>Luma Dream Machine key</h3>
+            <p class="desc">For Luma's high-quality 5-second generations.</p>
+            <div class="input-group">
+              <input type="password" class="input" id="key-luma" placeholder="luma_…" autocomplete="off" />
+              <button class="btn btn-ghost" data-save="luma">Save</button>
+            </div>
+          </div>
+
+          <div class="settings-card">
+            <h3>Proxy URL <span class="badge">Recommended</span></h3>
+            <p class="desc">Most providers don't allow direct browser calls. Deploy a tiny relay (any server framework) and paste its URL here. Example endpoints: <code>POST /text-to-video</code>, <code>POST /image-to-video</code>, <code>POST /video-to-video</code>.</p>
+            <div class="input-group">
+              <input type="text" class="input" id="proxy-url" placeholder="https://my-proxy.example.com" autocomplete="off" />
+              <button class="btn btn-ghost" data-save="proxy">Save</button>
+            </div>
+          </div>
+
+          <div class="settings-card">
+            <h3>Reset</h3>
+            <p class="desc">Clear all saved keys and history from this browser. Cannot be undone.</p>
+            <button class="btn btn-ghost" id="reset-btn" style="border-color: rgba(239, 68, 68, 0.4); color: #fca5a5;">Reset Lumen Studio</button>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <p>Built with ♥ in pure HTML, CSS &amp; JS · <a href="settings.html">Configure</a> · <a href="gallery.html">Gallery</a></p>
+    </div>
+  </footer>
+
+  <script src="js/particles.js"></script>
+  <script src="js/storage.js"></script>
+  <script src="js/app.js"></script>
+  <script src="js/settings.js"></script>
+</body>
+</html>
