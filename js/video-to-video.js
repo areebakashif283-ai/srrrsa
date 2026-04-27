@@ -136,14 +136,19 @@
         },
       });
       showResult(result.videoUrl, result.demo);
-      Storage.addHistory({
-        type: 'video-to-video',
-        prompt: promptEl.value,
-        style: state.style,
-        strength: Number(strengthEl.value),
-        videoUrl: result.videoUrl,
-        demo: result.demo,
-      });
+      try {
+        Storage.addHistory({
+          type: 'video-to-video',
+          prompt: promptEl.value,
+          style: state.style,
+          strength: Number(strengthEl.value),
+          videoUrl: result.videoUrl,
+          demo: result.demo,
+        });
+      } catch (storageErr) {
+        console.warn('History save failed', storageErr);
+        App.toast('Saved video, but history is full.', 'info');
+      }
       App.toast(result.demo ? 'Demo restyle ready.' : 'Restyle complete!', 'success');
     } catch (err) {
       showError(err.message);
