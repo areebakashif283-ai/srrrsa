@@ -25,8 +25,10 @@
     });
   });
 
+  const strengthVal = document.getElementById('strength-val');
   strengthEl.addEventListener('input', () => {
     strengthDisplay.textContent = strengthEl.value;
+    if (strengthVal) strengthVal.textContent = strengthEl.value;
   });
 
   function handleFile(file) {

@@ -28,8 +28,11 @@
   }
   setupChips('motion');
 
+  const durationVal = document.getElementById('duration-val');
   durationEl.addEventListener('input', () => {
-    durationDisplay.textContent = `${durationEl.value}s`;
+    const val = `${durationEl.value}s`;
+    durationDisplay.textContent = val;
+    if (durationVal) durationVal.textContent = val;
   });
 
   function handleFile(file) {
