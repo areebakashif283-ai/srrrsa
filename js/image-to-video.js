@@ -153,6 +153,16 @@
       App.toast('Upload an image first.', 'error');
       return;
     }
+    // Pin everything that identifies THIS submission to local consts so a user
+    // who swaps the image / changes settings while the API call is in flight
+    // can't poison the history entry we save when generation finishes.
+    const submission = {
+      file: state.file,
+      thumbPromise: state.thumbPromise,
+      motion: state.motion,
+      duration: Number(durationEl.value),
+      prompt: promptEl.value,
+    };
     generateBtn.disabled = true;
     previewActions.style.display = 'none';
     showLoading();
@@ -162,10 +172,10 @@
 
     try {
       const result = await VideoAPI.imageToVideo({
-        image: state.file,
-        motion: state.motion,
-        duration: Number(durationEl.value),
-        prompt: promptEl.value,
+        image: submission.file,
+        motion: submission.motion,
+        duration: submission.duration,
+        prompt: submission.prompt,
         onProgress: (pct) => {
           if (progressBar) progressBar.style.width = `${pct}%`;
           if (status) {
@@ -175,13 +185,13 @@
         },
       });
       showResult(result.videoUrl, result.demo);
-      const sourceImage = state.thumbPromise ? await state.thumbPromise : null;
+      const sourceImage = submission.thumbPromise ? await submission.thumbPromise : null;
       try {
         Storage.addHistory({
           type: 'image-to-video',
-          prompt: promptEl.value,
-          motion: state.motion,
-          duration: Number(durationEl.value),
+          prompt: submission.prompt,
+          motion: submission.motion,
+          duration: submission.duration,
           sourceImage,
           videoUrl: result.videoUrl,
           demo: result.demo,
